@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Monica's WW Tracker</title>
+<style>
+  :root {
+    --rose: #c2185b; --rose-light: #fce4ec; --rose-mid: #f06292;
+    --teal: #00796b; --teal-light: #e0f2f1; --teal-mid: #4db6ac;
+    --gold: #f9a825; --gold-light: #fff8e1;
+    --bg: #fdf6f9; --card: #ffffff; --border: #f0dde8;
+    --text: #2d1a24; --muted: #8a6070; --soft: #f7eef3;
+    --success: #2e7d32; --success-bg: #e8f5e9;
+    --warn: #e65100; --warn-bg: #fff3e0;
+    --radius: 14px; --radius-sm: 8px;
+    --shadow: 0 2px 12px rgba(194,24,91,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Georgia', serif; background: var(--bg); color: var(--text); font-size: 16px; min-height: 100vh; }
+
+  /* ── DATE NAV ── */
+  #date-nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; box-shadow: var(--shadow); }
+  .date-arrow { background: var(--soft); border: 1px solid var(--border); color: var(--rose); width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #date-display { text-align: center; flex: 1; }
+  #date-label { font-size: 15px; font-weight: bold; color: var(--rose); cursor: pointer; }
+  #date-sub { font-size: 11px; color: var(--muted); font-family: sans-serif; }
+  #date-picker-input { position: absolute; opacity: 0; width: 0; height: 0; }
+  #today-btn { font-size: 11px; color: var(--rose); border: 1px solid var(--rose); background: none; padding: 3px 8px; border-radius: 10px; cursor: pointer; font-family: sans-serif; display: none; }
+
+  /* ── TAB NAV ── */
+  #tab-nav { display: flex; overflow-x: auto; background: var(--card); border-bottom: 2px solid var(--rose-light); scrollbar-width: none; position: sticky; top: 61px; z-index: 49; }
+  #tab-nav::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; padding: 12px 14px; font-size: 13px; font-family: sans-serif; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+  .tab-btn.active { color: var(--rose); border-bottom-color: var(--rose); font-weight: bold; }
+
+  /* ── PANELS ── */
+  .panel { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  /* ── CARDS ── */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .card-title { font-size: 13px; color: var(--muted); font-family: sans-serif; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  h2.section-head { font-size: 20px; color: var(--rose); margin-bottom: 14px; }
+
+  /* ── HABITS TAB ── */
+  .habit-week-grid { overflow-x: auto; }
+  .habit-week-grid table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: sans-serif; }
+  .habit-week-grid th { padding: 4px 3px; text-align: center; color: var(--muted); font-weight: normal; }
+  .habit-week-grid th.day-head { cursor: pointer; border-radius: 6px; padding: 5px 3px; }
+  .habit-week-grid th.day-head.active-day { background: var(--rose); color: #fff; font-weight: bold; }
+  .habit-week-grid td { padding: 3px; text-align: center; }
+  .habit-week-grid td.habit-name { text-align: left; padding: 4px 6px; color: var(--text); font-size: 11px; max-width: 90px; }
+  .habit-dot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border); margin: auto; cursor: pointer; }
+  .habit-dot.done { background: var(--teal); border-color: var(--teal); }
+  .day-score { font-size: 10px; color: var(--muted); }
+
+  /* Daily card */
+  .daily-section { margin-bottom: 14px; }
+  .daily-section label { font-size: 13px; color: var(--muted); font-family: sans-serif; display: block; margin-bottom: 6px; }
+  .btn-pair { display: flex; gap: 8px; }
+  .habit-btn { flex: 1; padding: 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--soft); color: var(--muted); font-size: 14px; cursor: pointer; font-family: sans-serif; transition: all 0.15s; }
+  .habit-btn.on { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .water-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .glass { width: 36px; height: 36px; border-radius: 6px; border: 1.5px solid var(--border); background: var(--soft); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+  .glass.full { background: #b3e5fc; border-color: #039be5; }
+  .check-row { display: flex; align-items: center; gap: 10px; font-family: sans-serif; font-size: 15px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .check-row:last-child { border-bottom: none; }
+  .check-box { width: 24px; height: 24px; border: 2px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .check-box.checked { background: var(--teal); border-color: var(--teal); color: #fff; }
+  input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; font-family: sans-serif; background: var(--soft); color: var(--text); }
+  input:focus, select:focus { outline: none; border-color: var(--rose); }
+  .one-thing-row { display: flex; gap: 8px; align-items: flex-start; }
+  .one-thing-row input { flex: 1; }
+  .pts-badge { background: var(--rose); color: #fff; border-radius: 20px; padding: 4px 14px; font-size: 14px; font-family: sans-serif; font-weight: bold; display: inline-block; }
+  .progress-bar-wrap { background: var(--rose-light); border-radius: 20px; height: 10px; overflow: hidden; margin-top: 8px; }
+  .progress-bar-fill { height: 100%; background: var(--rose); border-radius: 20px; transition: width 0.3s; }
+  .exercise-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .exercise-row input { flex: 1; }
+  .exercise-row input:last-child { max-width: 80px; }
+  .add-btn { background: var(--rose); color: #fff; border: none; border-radius: var(--radius-sm); padding: 10px 16px; font-size: 14px; cursor: pointer; font-family: sans-serif; }
+  .ex-list { font-size: 13px; font-family: sans-serif; color: var(--muted); }
+  .ex-item { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .del-btn { color: var(--rose); cursor: pointer; font-size: 16px; background: none; border: none; }
+
+  /* ── POINTS TAB ── */
+  .pts-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 12px; }
+  .pts-cell { aspect-ratio: 1; border: 1.5px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-family: sans-serif; cursor: pointer; background: var(--soft); color: var(--text); }
+  .pts-cell.crossed { text-decoration: line-through; color: var(--muted); background: var(--rose-light); }
+  .pts-cell.checked { background: var(--rose); color: #fff; font-weight: bold; }
+  .bonus-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .bonus-cell { aspect-ratio: 1; border: 1.5px solid var(--border); border-radius: 5px; font-size: 11px; font-family: sans-serif; cursor: pointer; background: var(--gold-light); color: var(--text); display: flex; align-items: center; justify-content: center; }
+  .bonus-cell.used { background: var(--gold); color: #fff; font-weight: bold; }
+  .week-days-row { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-bottom: 4px; text-align: center; font-size: 11px; font-family: sans-serif; color: var(--muted); }
+  .daily-pts-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-family: sans-serif; font-size: 14px; }
+  .daily-pts-row:last-child { border-bottom: none; }
+
+  /* ── CALCULATOR TAB ── */
+  .calc-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .calc-row label { font-size: 13px; font-family: sans-serif; color: var(--muted); display: block; margin-bottom: 4px; }
+  .calc-row .field { flex: 1; }
+  .calc-result { background: var(--rose); color: #fff; border-radius: var(--radius); padding: 20px; text-align: center; margin-top: 12px; }
+  .calc-result .big { font-size: 48px; font-weight: bold; font-family: sans-serif; }
+  .calc-result .label { font-size: 13px; opacity: 0.85; font-family: sans-serif; }
+
+  /* ── GI TAB ── */
+  .gi-result { padding: 14px; border-radius: var(--radius-sm); text-align: center; font-family: sans-serif; }
+  .gi-low { background: var(--success-bg); color: var(--success); }
+  .gi-med { background: var(--gold-light); color: #e65100; }
+  .gi-high { background: var(--warn-bg); color: var(--warn); }
+
+  /* ── FOODS TAB ── */
+  .cat-bar { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; scrollbar-width: none; padding-bottom: 4px; }
+  .cat-bar::-webkit-scrollbar { display: none; }
+  .cat-pill { flex-shrink: 0; padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--soft); font-size: 13px; font-family: sans-serif; color: var(--muted); cursor: pointer; }
+  .cat-pill.active { background: var(--rose); border-color: var(--rose); color: #fff; }
+  .food-list { list-style: none; }
+  .food-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+  .food-item:last-child { border-bottom: none; }
+  .food-name { flex: 1; font-size: 14px; font-family: sans-serif; }
+  .food-meta { font-size: 12px; color: var(--muted); font-family: sans-serif; }
+  .food-pts { background: var(--rose-light); color: var(--rose); border-radius: 10px; padding: 2px 8px; font-size: 12px; font-family: sans-serif; font-weight: bold; min-width: 32px; text-align: center; }
+  .quick-add { background: var(--teal); color: #fff; border: none; border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: sans-serif; }
+
+  /* ── WEEKLY TRACKER TAB ── */
+  .week-tracker-header { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; text-align: center; font-size: 11px; font-family: sans-serif; color: var(--muted); margin-bottom: 4px; }
+  .week-tracker-col { display: flex; flex-direction: column; gap: 3px; }
+  .wt-cell { border: 1.5px solid var(--border); border-radius: 5px; padding: 6px 4px; text-align: center; font-size: 13px; font-family: sans-serif; cursor: pointer; background: var(--soft); }
+  .wt-cell.used { background: var(--rose); color: #fff; }
+  .wt-cell.over { text-decoration: line-through; color: var(--muted); background: var(--rose-light); }
+
+  /* ── TOAST ── */
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-family: sans-serif; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; white-space: nowrap; }
+  #toast.show { opacity: 1; }
+
+  </style>
+</head>
+<body>
+
+<!-- DATE NAV -->
+<div id="date-nav">
+  <button class="date-arrow" onclick="changeDate(-1)">&#8249;</button>
+  <div id="date-display">
+    <div id="date-label" onclick="openDatePicker()">Today</div>
+    <div id="date-sub"></div>
+    <input type="date" id="date-picker-input" onchange="setDateFromPicker(this.value)">
+  </div>
+  <button id="today-btn" onclick="goToday()">Today</button>
+  <button class="date-arrow" onclick="changeDate(1)">&#8250;</button>
+</div>
+
+<!-- TAB NAV -->
+<div id="tab-nav">
+  <button class="tab-btn active" onclick="showTab('habits',this)">🌸 Habits</button>
+  <button class="tab-btn" onclick="showTab('tracker',this)">📋 Weekly</button>
+  <button class="tab-btn" onclick="showTab('foods',this)">🥗 Foods</button>
+  <button class="tab-btn" onclick="showTab('calc',this)">🧮 Points</button>
+  <button class="tab-btn" onclick="showTab('gi',this)">📊 GI</button>
+</div>
+
+<!-- ══════════════════════════════════ HABITS PANEL ══════════════════════════════════ -->
+<div class="panel active" id="panel-habits">
+
+  <!-- Week grid -->
+  <div class="card">
+    <div class="card-title">Week at a glance</div>
+    <div class="habit-week-grid">
+      <table id="habits-grid-table"></table>
+    </div>
+  </div>
+
+  <!-- Daily card -->
+  <div class="card" id="daily-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div class="card-title" style="margin:0;">Today's Habits</div>
+      <span class="pts-badge" id="pts-today-badge">0 pts</span>
+    </div>
+
+    <!-- My One Thing -->
+    <div class="daily-section">
+      <label>⭐ My One Thing</label>
+      <div class="one-thing-row">
+        <input type="text" id="one-thing-text" placeholder="What matters most today?" oninput="saveHabits()">
+        <div class="check-box" id="one-thing-check" onclick="toggleCheck('oneThingDone')">
+          <span id="one-thing-check-icon"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medications -->
+    <div class="daily-section">
+      <label>💊 Medications</label>
+      <div class="btn-pair">
+        <button class="habit-btn" id="btn-med-am" onclick="toggleHabit('medAM')">AM Meds</button>
+        <button class="habit-btn" id="btn-med-pm" onclick="toggleHabit('medPM')">PM Meds</button>
+      </div>
+    </div>
+
+    <!-- Brush Teeth -->
+    <div class="daily-section">
+      <label>🦷 Brush Teeth</label>
+      <div class="btn-pair">
+        <button class="habit-btn" id="btn-brush-am" onclick="toggleHabit('brushAM')">AM</button>
+        <button class="habit-btn" id="btn-brush-pm" onclick="toggleHabit('brushPM')">PM</button>
+      </div>
+    </div>
+
+    <!-- Water -->
+    <div class="daily-section">
+      <label>💧 Water <span id="water-count" style="color:var(--teal);font-weight:bold;">0/8</span></label>
+      <div class="water-row" id="water-glasses"></div>
+    </div>
+
+    <!-- Exercise -->
+    <div class="daily-section">
+      <label>🏃 Exercise</label>
+      <div class="exercise-row">
+        <input type="text" id="ex-type" placeholder="Activity">
+        <input type="number" id="ex-dur" placeholder="min" min="0">
+      </div>
+      <button class="add-btn" onclick="addExercise()">+ Log</button>
+      <div class="ex-list" id="ex-list"></div>
+    </div>
+
+    <!-- Checkboxes -->
+    <div class="daily-section">
+      <div class="check-row" onclick="toggleCheck('reading')">
+        <div class="check-box" id="cb-reading"><span id="cb-reading-icon"></span></div>
+        <span>📖 Reading</span>
+      </div>
+      <div class="check-row" onclick="toggleCheck('journaling')">
+        <div class="check-box" id="cb-journaling"><span id="cb-journaling-icon"></span></div>
+        <span>✍️ Journaling</span>
+      </div>
+      <div class="check-row" onclick="toggleCheck('foodTracked')">
+        <div class="check-box" id="cb-foodTracked"><span id="cb-foodTracked-icon"></span></div>
+        <span>🥗 Food tracked</span>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div style="margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-family:sans-serif;color:var(--muted);margin-bottom:4px;">
+        <span>Daily score</span><span id="score-label">0/10</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ WEEKLY TRACKER PANEL ══════════════════════════════════ -->
+<div class="panel" id="panel-tracker">
+  <h2 class="section-head">Weekly Tracker</h2>
+
+  <div class="card">
+    <div class="card-title">Week of <span id="week-label"></span></div>
+    <div class="week-days-row" id="wt-days-row"></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;" id="wt-cols"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Weekly Bonus (35 pts)</div>
+    <div class="bonus-grid" id="bonus-grid"></div>
+    <div style="margin-top:8px;font-size:13px;font-family:sans-serif;color:var(--muted);">
+      Remaining: <strong id="bonus-left" style="color:var(--rose);">35</strong> pts
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Daily Summary</div>
+    <div id="daily-pts-summary"></div>
+  </div>
+
+  <div style="text-align:center;margin-top:4px;">
+    <button onclick="resetWeek()" style="background:none;border:1.5px solid var(--rose);color:var(--rose);padding:10px 24px;border-radius:20px;font-size:14px;cursor:pointer;font-family:sans-serif;">Reset Week</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ FOODS PANEL ══════════════════════════════════ -->
+<div class="panel" id="panel-foods">
+  <h2 class="section-head">My Foods</h2>
+  <div class="card">
+    <input type="text" id="food-search" placeholder="Search foods…" oninput="renderFoods()" style="margin-bottom:10px;">
+    <div class="cat-bar" id="cat-bar"></div>
+    <ul class="food-list" id="food-list"></ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Add New Food</div>
+    <div class="calc-row"><div class="field"><label>Name</label><input type="text" id="af-name" placeholder="Food name"></div></div>
+    <div class="calc-row">
+      <div class="field"><label>Serving</label><input type="text" id="af-serving" placeholder="e.g. 1 cup"></div>
+      <div class="field"><label>Category</label>
+        <select id="af-cat">
+          <option>Fruit</option><option>Vegetable</option><option>Protein</option>
+          <option>Dairy</option><option>Grain</option><option>Pantry</option>
+        </select>
+      </div>
+    </div>
+    <div class="calc-row">
+      <div class="field"><label>Calories</label><input type="number" id="af-cal" min="0"></div>
+      <div class="field"><label>Fat (g)</label><input type="number" id="af-fat" min="0"></div>
+      <div class="field"><label>Fiber (g)</label><input type="number" id="af-fib" min="0"></div>
+    </div>
+    <div class="calc-row"><div class="field"><label>GI (0–100)</label><input type="number" id="af-gi" min="0" max="100" placeholder="50"></div></div>
+    <button class="add-btn" onclick="addFood()" style="width:100%;margin-top:4px;">Save Food</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ CALCULATOR PANEL ══════════════════════════════════ -->
+<div class="panel" id="panel-calc">
+  <h2 class="section-head">Points Calculator</h2>
+  <div class="card">
+    <div class="card-title">Flex Plan Formula: Cal÷50 + Fat÷12 − Fiber÷5 (fiber max 4g)</div>
+    <div class="calc-row">
+      <div class="field"><label>Calories</label><input type="number" id="c-cal" min="0" oninput="calcPoints()"></div>
+      <div class="field"><label>Fat (g)</label><input type="number" id="c-fat" min="0" oninput="calcPoints()"></div>
+    </div>
+    <div class="calc-row">
+      <div class="field"><label>Fiber (g)</label><input type="number" id="c-fib" min="0" oninput="calcPoints()"></div>
+      <div class="field"><label>Protein (g)</label><input type="number" id="c-pro" min="0" oninput="calcPoints()"></div>
+    </div>
+    <div class="calc-result" id="calc-result">
+      <div class="big" id="calc-pts">—</div>
+      <div class="label">WW Flex Points</div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <input type="text" id="c-name" placeholder="Food name (optional)">
+      <button class="add-btn" onclick="addCalcToTracker()">+ Add to Day</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ GI PANEL ══════════════════════════════════ -->
+<div class="panel" id="panel-gi">
+  <h2 class="section-head">Glycemic Index</h2>
+  <div class="card">
+    <div class="card-title">Quick Lookup</div>
+    <select id="gi-select" onchange="setGIFromLookup()" style="margin-bottom:12px;">
+      <option value="">— Select a food —</option>
+    </select>
+    <label style="font-size:13px;font-family:sans-serif;color:var(--muted);display:block;margin-bottom:4px;">GI Value: <strong id="gi-val-label">50</strong></label>
+    <input type="range" id="gi-slider" min="0" max="100" value="50" oninput="updateGI(this.value)" style="width:100%;margin-bottom:12px;">
+    <label style="font-size:13px;font-family:sans-serif;color:var(--muted);display:block;margin-bottom:4px;">Serving size (g)</label>
+    <input type="number" id="gi-serving" value="100" min="1" oninput="updateGI()" style="margin-bottom:12px;">
+    <label style="font-size:13px;font-family:sans-serif;color:var(--muted);display:block;margin-bottom:4px;">Carbs (g)</label>
+    <input type="number" id="gi-carbs" value="20" min="0" oninput="updateGI()" style="margin-bottom:16px;">
+    <div class="gi-result" id="gi-result">
+      <div style="font-size:32px;font-weight:bold;" id="gi-gl">—</div>
+      <div style="font-size:14px;" id="gi-rating">Enter values above</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════ CONFIG ══════════════════════
+const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // Placeholder — see setup instructions
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const DAILY_TARGET = 26;
+const WEEKLY_BONUS = 35;
+
+// ══════════════════════ STATE ══════════════════════
+let currentDate = todayStr();
+let driveToken = null;
+let driveFileId = null;
+let saveTimer = null;
+let isSyncing = false;
+
+// Data shapes
+function emptyDay() {
+  return {
+    medAM:false, medPM:false, brushAM:false, brushPM:false,
+    water:0, reading:false, journaling:false, foodTracked:false,
+    oneThingText:'', oneThingDone:false,
+    exercises:[], points:0
+  };
+}
+function emptyWeek() {
+  return { bonus:[], days:{} };
+}
+
+// ══════════════════════ DATE HELPERS ══════════════════════
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function parseDate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function formatDisplay(s) {
+  const d = parseDate(s);
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+function formatShort(s) {
+  const d = parseDate(s);
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+}
+function weekStart(s) {
+  const d = parseDate(s);
+  const day = d.getDay(); // 0=Sun
+  const mon = new Date(d); mon.setDate(d.getDate() - ((day+6)%7));
+  return mon.getFullYear()+'-'+String(mon.getMonth()+1).padStart(2,'0')+'-'+String(mon.getDate()).padStart(2,'0');
+}
+function weekDays(s) {
+  const ws = weekStart(s);
+  const days = [];
+  for(let i=0;i<7;i++) {
+    const d = parseDate(ws); d.setDate(d.getDate()+i);
+    days.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+  }
+  return days;
+}
+function addDays(s, n) {
+  const d = parseDate(s); d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+// ══════════════════════ STORAGE ══════════════════════
+function loadAll() {
+  try { return JSON.parse(localStorage.getItem('ww-all') || '{}'); } catch(e) { return {}; }
+}
+function saveAll(data) {
+  localStorage.setItem('ww-all', JSON.stringify(data));
+  localStorage.setItem('ww-all-ts', Date.now().toString());
+  }
+function getDay(ds) {
+  const all = loadAll();
+  return all['day_'+ds] ? {...emptyDay(), ...all['day_'+ds]} : emptyDay();
+}
+function setDay(ds, dayData) {
+  const all = loadAll();
+  all['day_'+ds] = dayData;
+  saveAll(all);
+}
+function getWeekData(ws) {
+  const all = loadAll();
+  return all['week_'+ws] ? {...emptyWeek(), ...all['week_'+ws]} : emptyWeek();
+}
+function setWeekData(ws, wData) {
+  const all = loadAll();
+  all['week_'+ws] = wData;
+  saveAll(all);
+}
+function loadFoods() {
+  try { return JSON.parse(localStorage.getItem('ww-foods') || 'null') || defaultFoods(); } catch(e) { return defaultFoods(); }
+}
+function saveFoods(foods) {
+  localStorage.setItem('ww-foods', JSON.stringify(foods));
+  }
+
+// ══════════════════════ DATE NAVIGATION ══════════════════════
+function changeDate(n) {
+  currentDate = addDays(currentDate, n);
+  onDateChange();
+}
+function goToday() {
+  currentDate = todayStr();
+  onDateChange();
+}
+function openDatePicker() {
+  const inp = document.getElementById('date-picker-input');
+  inp.value = currentDate;
+  inp.showPicker ? inp.showPicker() : inp.click();
+}
+function setDateFromPicker(v) {
+  if(v) { currentDate = v; onDateChange(); }
+}
+function onDateChange() {
+  updateDateUI();
+  const activeTab = document.querySelector('.tab-btn.active');
+  const tabId = activeTab ? activeTab.getAttribute('onclick').match(/'([^']+)'/)[1] : 'habits';
+  if(tabId==='habits') refreshHabitsUI();
+  if(tabId==='tracker') refreshTrackerUI();
+}
+function updateDateUI() {
+  const today = todayStr();
+  document.getElementById('date-label').textContent = currentDate===today ? 'Today' : formatShort(currentDate);
+  document.getElementById('date-sub').textContent = formatDisplay(currentDate);
+  const todayBtn = document.getElementById('today-btn');
+  todayBtn.style.display = currentDate!==today ? 'block' : 'none';
+}
+
+// ══════════════════════ HABITS ══════════════════════
+const HABIT_KEYS = ['medAM','medPM','brushAM','brushPM','water','reading','journaling','foodTracked','oneThingDone','exercises'];
+const HABIT_LABELS = ['AM Med','PM Med','AM Brush','PM Brush','Water','Reading','Journal','Food','One Thing','Exercise'];
+
+function habitScore(d) {
+  let s = 0;
+  if(d.medAM) s++;
+  if(d.medPM) s++;
+  if(d.brushAM) s++;
+  if(d.brushPM) s++;
+  if(d.water>=8) s++;
+  if(d.reading) s++;
+  if(d.journaling) s++;
+  if(d.foodTracked) s++;
+  if(d.oneThingDone) s++;
+  if(d.exercises && d.exercises.length>0) s++;
+  return s;
+}
+
+function buildHabitGrid() {
+  const days = weekDays(currentDate);
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html = '<thead><tr><th style="width:90px;text-align:left;">Habit</th>';
+  days.forEach((ds,i) => {
+    const active = ds===currentDate ? 'active-day' : '';
+    html += `<th class="day-head ${active}" onclick="jumpToDay('${ds}')">${dayNames[i]}<br><span class="day-score" id="grid-score-${ds}"></span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+  const labels = ['AM Med','PM Med','AM Brush','PM Brush','💧Water','📖Read','✍️Journal','🥗Food','⭐One Thing','🏃Exercise'];
+  const keys = ['medAM','medPM','brushAM','brushPM','waterDone','reading','journaling','foodTracked','oneThingDone','exerciseDone'];
+  labels.forEach((lbl,hi) => {
+    html += `<tr><td class="habit-name">${lbl}</td>`;
+    days.forEach(ds => {
+      const d = getDay(ds);
+      const done = keys[hi]==='waterDone' ? d.water>=8 : keys[hi]==='exerciseDone' ? (d.exercises&&d.exercises.length>0) : d[keys[hi]];
+      html += `<td><div class="habit-dot ${done?'done':''}" onclick="jumpToDay('${ds}')"></div></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('habits-grid-table').innerHTML = html;
+  days.forEach(ds => {
+    const sc = document.getElementById('grid-score-'+ds);
+    if(sc) sc.textContent = habitScore(getDay(ds))+'/10';
+  });
+}
+
+function jumpToDay(ds) {
+  currentDate = ds;
+  onDateChange();
+}
+
+function refreshHabitsUI() {
+  buildHabitGrid();
+  const d = getDay(currentDate);
+  // buttons
+  ['medAM','medPM','brushAM','brushPM'].forEach(k => {
+    const btn = document.getElementById('btn-'+k.replace('AM','-am').replace('PM','-pm'));
+    if(btn) btn.classList.toggle('on', !!d[k]);
+  });
+  // water
+  document.getElementById('water-count').textContent = (d.water||0)+'/8';
+  let wHtml='';
+  for(let i=0;i<8;i++) wHtml+=`<div class="glass ${i<(d.water||0)?'full':''}" onclick="setWater(${i+1})">💧</div>`;
+  document.getElementById('water-glasses').innerHTML=wHtml;
+  // one thing
+  document.getElementById('one-thing-text').value = d.oneThingText||'';
+  setCheckUI('one-thing-check','one-thing-check-icon', d.oneThingDone);
+  // checkboxes
+  ['reading','journaling','foodTracked'].forEach(k => setCheckUI('cb-'+k,'cb-'+k+'-icon', d[k]));
+  // exercises
+  renderExercises(d.exercises||[]);
+  // points badge
+  const ws = weekStart(currentDate);
+  const wd = getWeekData(ws);
+  const usedToday = wd.days && wd.days[currentDate] ? wd.days[currentDate] : 0;
+  document.getElementById('pts-today-badge').textContent = usedToday+' pts';
+  // score
+  const sc = habitScore(d);
+  document.getElementById('score-label').textContent = sc+'/10';
+  document.getElementById('progress-fill').style.width = (sc*10)+'%';
+  // daily card title
+  const today = todayStr();
+  document.querySelector('#daily-card .card-title').textContent = currentDate===today ? "Today's Habits" : formatShort(currentDate)+" Habits";
+}
+
+function toggleHabit(key) {
+  const d = getDay(currentDate);
+  d[key] = !d[key];
+  setDay(currentDate, d);
+  refreshHabitsUI();
+}
+
+function toggleCheck(key) {
+  const d = getDay(currentDate);
+  d[key] = !d[key];
+  setDay(currentDate, d);
+  refreshHabitsUI();
+}
+
+function setCheckUI(boxId, iconId, val) {
+  const box = document.getElementById(boxId);
+  const icon = document.getElementById(iconId);
+  if(!box||!icon) return;
+  box.classList.toggle('checked', !!val);
+  icon.textContent = val ? '✓' : '';
+}
+
+function setWater(n) {
+  const d = getDay(currentDate);
+  d.water = d.water===n ? n-1 : n;
+  setDay(currentDate, d);
+  refreshHabitsUI();
+}
+
+function addExercise() {
+  const type = document.getElementById('ex-type').value.trim();
+  const dur = parseInt(document.getElementById('ex-dur').value)||0;
+  if(!type) return;
+  const d = getDay(currentDate);
+  if(!d.exercises) d.exercises=[];
+  d.exercises.push({type,dur});
+  setDay(currentDate, d);
+  document.getElementById('ex-type').value='';
+  document.getElementById('ex-dur').value='';
+  refreshHabitsUI();
+}
+
+function deleteExercise(idx) {
+  const d = getDay(currentDate);
+  d.exercises.splice(idx,1);
+  setDay(currentDate, d);
+  refreshHabitsUI();
+}
+
+function renderExercises(exs) {
+  const el = document.getElementById('ex-list');
+  if(!exs||!exs.length){el.innerHTML='';return;}
+  el.innerHTML = exs.map((e,i)=>`<div class="ex-item"><span>${e.type} — ${e.dur} min</span><button class="del-btn" onclick="deleteExercise(${i})">×</button></div>`).join('');
+}
+
+// Handle one-thing text changes
+document.getElementById('one-thing-text').addEventListener('input', function() {
+  const d = getDay(currentDate);
+  d.oneThingText = this.value;
+  setDay(currentDate, d);
+});
+
+// ══════════════════════ WEEKLY TRACKER ══════════════════════
+function refreshTrackerUI() {
+  const ws = weekStart(currentDate);
+  const days = weekDays(currentDate);
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const wd = getWeekData(ws);
+
+  // Week label
+  const wStart = parseDate(ws);
+  document.getElementById('week-label').textContent = wStart.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+  // Days header
+  document.getElementById('wt-days-row').innerHTML = dayNames.map((n,i)=>`<div style="text-align:center;font-size:11px;font-family:sans-serif;color:var(--muted);">${n}<br><span style="font-size:10px;">${parseDate(days[i]).getDate()}</span></div>`).join('');
+
+  // Build per-day columns of points 1..26
+  const colsEl = document.getElementById('wt-cols');
+  colsEl.innerHTML = '';
+  days.forEach((ds, di) => {
+    const used = wd.days && wd.days[ds] ? Number(wd.days[ds]) : 0;
+    const col = document.createElement('div');
+    col.style.cssText='display:flex;flex-direction:column;gap:3px;';
+    for(let p=1;p<=DAILY_TARGET;p++) {
+      const cell = document.createElement('div');
+      cell.className='wt-cell'+(p<=used?' used':'');
+      cell.textContent=p;
+      cell.onclick=(function(day,pts){ return function(){ setDayPoints(day,pts); }; })(ds,p);
+      col.appendChild(cell);
+    }
+    colsEl.appendChild(col);
+  });
+
+  // Bonus grid (35 cells)
+  const bonusUsed = wd.bonus || [];
+  let bHtml='';
+  for(let i=1;i<=WEEKLY_BONUS;i++) {
+    const used2 = bonusUsed.includes(i);
+    bHtml+=`<div class="bonus-cell ${used2?'used':''}" onclick="toggleBonus(${i})">${i}</div>`;
+  }
+  document.getElementById('bonus-grid').innerHTML=bHtml;
+  document.getElementById('bonus-left').textContent=WEEKLY_BONUS-bonusUsed.length;
+
+  // Daily summary
+  let sumHtml='';
+  days.forEach((ds,i) => {
+    const pts = wd.days && wd.days[ds] ? Number(wd.days[ds]) : 0;
+    sumHtml+=`<div class="daily-pts-row"><span>${dayNames[i]} ${parseDate(ds).getDate()}</span><span style="font-weight:bold;color:${pts>DAILY_TARGET?'var(--warn)':'var(--rose)'};">${pts} / ${DAILY_TARGET} pts</span></div>`;
+  });
+  document.getElementById('daily-pts-summary').innerHTML=sumHtml;
+
+  // Update pts badge in habits tab
+  const usedToday = wd.days && wd.days[currentDate] ? wd.days[currentDate] : 0;
+  const badge = document.getElementById('pts-today-badge');
+  if(badge) badge.textContent = usedToday+' pts';
+}
+
+function setDayPoints(ds, pts) {
+  const ws = weekStart(ds);
+  const wd = getWeekData(ws);
+  if(!wd.days) wd.days={};
+  // Toggle: if already set to this value, decrease by 1
+  wd.days[ds] = wd.days[ds]===pts ? pts-1 : pts;
+  if(wd.days[ds]<0) wd.days[ds]=0;
+  setWeekData(ws, wd);
+  refreshTrackerUI();
+  // Auto-check food tracked in habits
+  const d = getDay(ds);
+  if(wd.days[ds]>0 && !d.foodTracked) { d.foodTracked=true; setDay(ds,d); }
+}
+
+function toggleBonus(n) {
+  const ws = weekStart(currentDate);
+  const wd = getWeekData(ws);
+  if(!wd.bonus) wd.bonus=[];
+  const idx = wd.bonus.indexOf(n);
+  if(idx>=0) wd.bonus.splice(idx,1); else wd.bonus.push(n);
+  setWeekData(ws, wd);
+  refreshTrackerUI();
+}
+
+function resetWeek() {
+  if(!confirm('Reset this week\'s tracker? Habit data will be kept.')) return;
+  const ws = weekStart(currentDate);
+  setWeekData(ws, emptyWeek());
+  refreshTrackerUI();
+  toast('Week reset!');
+}
+
+// ══════════════════════ FOODS ══════════════════════
+let activeCat='All';
+const CATS=['All','Fruit','Vegetable','Protein','Dairy','Grain','Pantry'];
+
+function calcFoodPts(cal,fat,fiber) {
+  const f = Math.min(fiber||0, 4);
+  return Math.max(0, Math.round((cal||0)/50 + (fat||0)/12 - f/5));
+}
+
+function renderFoods() {
+  const foods = loadFoods();
+  const q = (document.getElementById('food-search').value||'').toLowerCase();
+  // Cat bar
+  const catBar = document.getElementById('cat-bar');
+  catBar.innerHTML = CATS.map(c=>`<div class="cat-pill ${c===activeCat?'active':''}" onclick="setCat('${c}')">${c}</div>`).join('');
+  // Filter
+  const filtered = foods.filter(f => {
+    const catMatch = activeCat==='All' || f.cat===activeCat;
+    const qMatch = !q || f.name.toLowerCase().includes(q);
+    return catMatch && qMatch;
+  });
+  const list = document.getElementById('food-list');
+  if(!filtered.length){list.innerHTML='<li style="padding:16px;text-align:center;color:var(--muted);font-family:sans-serif;">No foods found</li>';return;}
+  list.innerHTML = filtered.map(f=>{
+    const pts=calcFoodPts(f.cal,f.fat,f.fiber);
+    return `<li class="food-item">
+      <div style="flex:1;">
+        <div class="food-name">${f.name}</div>
+        <div class="food-meta">${f.serving} · GI ${f.gi||'?'}</div>
+      </div>
+      <span class="food-pts">${pts} pt${pts!==1?'s':''}</span>
+      <button class="quick-add" onclick="quickAddFood('${f.name}',${pts})">+Add</button>
+      <button class="del-btn" onclick="deleteFood(${f.id})">×</button>
+    </li>`;
+  }).join('');
+}
+
+function setCat(c) { activeCat=c; renderFoods(); }
+
+function quickAddFood(name, pts) {
+  const ds = currentDate;
+  const ws = weekStart(ds);
+  const wd = getWeekData(ws);
+  if(!wd.days) wd.days={};
+  wd.days[ds] = (Number(wd.days[ds])||0) + pts;
+  setWeekData(ws, wd);
+  // Mark food tracked
+  const d = getDay(ds);
+  d.foodTracked = true;
+  setDay(ds, d);
+  refreshTrackerUI();
+  if(document.getElementById('panel-habits').classList.contains('active')) refreshHabitsUI();
+  toast(`${name} added — ${pts} pts to ${ds===todayStr()?'today':formatShort(ds)}`);
+}
+
+function deleteFood(id) {
+  const foods = loadFoods().filter(f=>f.id!==id);
+  saveFoods(foods);
+  renderFoods();
+}
+
+function addFood() {
+  const name = document.getElementById('af-name').value.trim();
+  if(!name){toast('Enter a food name');return;}
+  const foods = loadFoods();
+  const f = {
+    id:Date.now(), name, cat:document.getElementById('af-cat').value,
+    serving:document.getElementById('af-serving').value||'1 serving',
+    cal:parseFloat(document.getElementById('af-cal').value)||0,
+    fat:parseFloat(document.getElementById('af-fat').value)||0,
+    fiber:parseFloat(document.getElementById('af-fib').value)||0,
+    gi:parseInt(document.getElementById('af-gi').value)||0
+  };
+  foods.unshift(f);
+  saveFoods(foods);
+  ['af-name','af-serving','af-cal','af-fat','af-fib','af-gi'].forEach(id=>document.getElementById(id).value='');
+  renderFoods();
+  toast(`"${name}" saved!`);
+}
+
+// ══════════════════════ CALCULATOR ══════════════════════
+function calcPoints() {
+  const cal=parseFloat(document.getElementById('c-cal').value)||0;
+  const fat=parseFloat(document.getElementById('c-fat').value)||0;
+  const fiber=Math.min(parseFloat(document.getElementById('c-fib').value)||0,4);
+  const pts=Math.max(0,Math.round(cal/50+fat/12-fiber/5));
+  document.getElementById('calc-pts').textContent=pts;
+}
+
+function addCalcToTracker() {
+  const pts=parseInt(document.getElementById('calc-pts').textContent)||0;
+  if(!pts && pts!==0){toast('Calculate points first');return;}
+  const name=document.getElementById('c-name').value||'Food';
+  quickAddFood(name,pts);
+}
+
+// ══════════════════════ GI / GL ══════════════════════
+const GI_FOODS=[
+  {name:'Apple',gi:38},{name:'Banana (ripe)',gi:62},{name:'Orange',gi:43},
+  {name:'Grapes',gi:59},{name:'Strawberries',gi:40},{name:'Peach',gi:42},
+  {name:'White rice',gi:73},{name:'Oatmeal',gi:55},{name:'Corn tortilla',gi:52},
+  {name:'Quinoa',gi:53},{name:'Homemade white bread',gi:70},
+  {name:'Homemade whole wheat bread',gi:51},{name:'Russet potato (baked)',gi:85},
+  {name:'Cooked carrots',gi:47},{name:'Green beans',gi:15},
+  {name:'Broccoli',gi:10},{name:'Cauliflower',gi:10},
+  {name:'Pinto beans',gi:39},{name:'Kidney beans',gi:24},
+  {name:'Cannellini beans',gi:31},{name:'Butter beans',gi:31},
+  {name:'Eggs',gi:0},{name:'Chicken breast',gi:0},
+  {name:'Ground beef',gi:0},{name:'Pork loin',gi:0},
+  {name:'Whole milk',gi:31},{name:'Cottage cheese',gi:10},
+  {name:'Tortilla chips',gi:63},{name:'Cornbread',gi:69},
+  {name:'Peanut butter',gi:14},{name:'Almonds',gi:0}
+];
+
+function initGI() {
+  const sel = document.getElementById('gi-select');
+  GI_FOODS.forEach(f=>sel.innerHTML+=`<option value="${f.gi}">${f.name} (GI ${f.gi})</option>`);
+}
+function setGIFromLookup() {
+  const v=document.getElementById('gi-select').value;
+  if(v!==''){document.getElementById('gi-slider').value=v;document.getElementById('gi-val-label').textContent=v;updateGI(v);}
+}
+function updateGI(v) {
+  if(v!==undefined) document.getElementById('gi-val-label').textContent=Math.round(v);
+  const gi=parseInt(document.getElementById('gi-slider').value)||0;
+  const carbs=parseFloat(document.getElementById('gi-carbs').value)||0;
+  const serving=parseFloat(document.getElementById('gi-serving').value)||100;
+  const gl=Math.round(gi*(carbs*(serving/100))/100);
+  document.getElementById('gi-gl').textContent=gl;
+  const res=document.getElementById('gi-result');
+  res.className='gi-result';
+  if(gl<=10){res.classList.add('gi-low');document.getElementById('gi-rating').textContent='🟢 Low glycemic load';}
+  else if(gl<=20){res.classList.add('gi-med');document.getElementById('gi-rating').textContent='🟡 Medium glycemic load';}
+  else{res.classList.add('gi-high');document.getElementById('gi-rating').textContent='🔴 High glycemic load';}
+}
+
+// ══════════════════════ TAB SWITCHING ══════════════════════
+function showTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id==='habits') refreshHabitsUI();
+  if(id==='tracker') refreshTrackerUI();
+  if(id==='foods') renderFoods();
+}
+
+// ══════════════════════ TOAST ══════════════════════
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ══════════════════════ DEFAULT FOODS ══════════════════════
+function defaultFoods() {
+  return [
+    // Fruits
+    {id:1,name:'Apple',cat:'Fruit',serving:'1 medium',cal:95,fat:0,fiber:4,gi:38},
+    {id:2,name:'Banana',cat:'Fruit',serving:'1 medium',cal:105,fat:0,fiber:3,gi:62},
+    {id:3,name:'Orange',cat:'Fruit',serving:'1 medium',cal:62,fat:0,fiber:3,gi:43},
+    {id:4,name:'Grapes',cat:'Fruit',serving:'1 cup',cal:104,fat:0,fiber:1,gi:59},
+    {id:5,name:'Strawberries',cat:'Fruit',serving:'1 cup',cal:49,fat:0,fiber:3,gi:40},
+    {id:6,name:'Peach',cat:'Fruit',serving:'1 medium',cal:58,fat:0,fiber:2,gi:42},
+    // Vegetables
+    {id:7,name:'Broccoli',cat:'Vegetable',serving:'1 cup',cal:31,fat:0,fiber:2,gi:10},
+    {id:8,name:'Cooked Carrots',cat:'Vegetable',serving:'½ cup',cal:27,fat:0,fiber:2,gi:47},
+    {id:9,name:'Russet Potato',cat:'Vegetable',serving:'1 medium',cal:168,fat:0,fiber:4,gi:85},
+    {id:10,name:'Artichoke',cat:'Vegetable',serving:'1 medium',cal:60,fat:0,fiber:7,gi:15},
+    {id:11,name:'Brussels Sprouts',cat:'Vegetable',serving:'1 cup',cal:38,fat:0,fiber:3,gi:15},
+    {id:12,name:'Fried Cabbage',cat:'Vegetable',serving:'1 cup',cal:90,fat:5,fiber:3,gi:15},
+    {id:13,name:'Cauliflower',cat:'Vegetable',serving:'1 cup',cal:25,fat:0,fiber:3,gi:10},
+    {id:14,name:'Green Beans',cat:'Vegetable',serving:'1 cup',cal:31,fat:0,fiber:4,gi:15},
+    {id:15,name:'Pickled Beets',cat:'Vegetable',serving:'½ cup',cal:75,fat:0,fiber:2,gi:64},
+    {id:16,name:'Bell Pepper',cat:'Vegetable',serving:'1 medium',cal:31,fat:0,fiber:1,gi:10},
+    {id:17,name:'Anaheim Pepper',cat:'Vegetable',serving:'1 pepper',cal:18,fat:0,fiber:1,gi:10},
+    {id:18,name:'Poblano Pepper',cat:'Vegetable',serving:'1 pepper',cal:17,fat:0,fiber:1,gi:10},
+    {id:19,name:'Olives',cat:'Vegetable',serving:'10 olives',cal:59,fat:6,fiber:1,gi:10},
+    // Protein
+    {id:20,name:'Chicken Breast',cat:'Protein',serving:'4 oz',cal:187,fat:4,fiber:0,gi:0},
+    {id:21,name:'Eggs',cat:'Protein',serving:'2 large',cal:143,fat:10,fiber:0,gi:0},
+    {id:22,name:'Ground Beef (lean)',cat:'Protein',serving:'4 oz',cal:215,fat:13,fiber:0,gi:0},
+    {id:23,name:'Sirloin Steak',cat:'Protein',serving:'4 oz',cal:207,fat:9,fiber:0,gi:0},
+    {id:24,name:'Pork Loin',cat:'Protein',serving:'4 oz',cal:185,fat:7,fiber:0,gi:0},
+    {id:25,name:'Butter Beans',cat:'Protein',serving:'½ cup',cal:110,fat:0,fiber:6,gi:31},
+    {id:26,name:'Navy Beans',cat:'Protein',serving:'½ cup',cal:128,fat:1,fiber:10,gi:38},
+    {id:27,name:'Pinto Beans',cat:'Protein',serving:'½ cup',cal:122,fat:1,fiber:8,gi:39},
+    {id:28,name:'Pink Beans',cat:'Protein',serving:'½ cup',cal:126,fat:0,fiber:9,gi:39},
+    {id:29,name:'Kidney Beans',cat:'Protein',serving:'½ cup',cal:112,fat:0,fiber:8,gi:24},
+    {id:30,name:'Cannellini Beans',cat:'Protein',serving:'½ cup',cal:100,fat:0,fiber:7,gi:31},
+    // Dairy
+    {id:31,name:'Whole A2 Milk',cat:'Dairy',serving:'1 cup',cal:149,fat:8,fiber:0,gi:31},
+    {id:32,name:'Swiss Cheese',cat:'Dairy',serving:'1 oz',cal:106,fat:8,fiber:0,gi:0},
+    {id:33,name:'Colby Jack',cat:'Dairy',serving:'1 oz',cal:109,fat:9,fiber:0,gi:0},
+    {id:34,name:'American Cheese',cat:'Dairy',serving:'1 slice',cal:65,fat:5,fiber:0,gi:0},
+    {id:35,name:'Cheddar Cheese',cat:'Dairy',serving:'1 oz',cal:114,fat:9,fiber:0,gi:0},
+    {id:36,name:'Cottage Cheese 2%',cat:'Dairy',serving:'½ cup',cal:90,fat:2,fiber:0,gi:10},
+    {id:37,name:'Cream Cheese',cat:'Dairy',serving:'2 tbsp',cal:99,fat:10,fiber:0,gi:0},
+    // Grains
+    {id:38,name:'Artisan French Bread',cat:'Grain',serving:'1 slice (homemade)',cal:130,fat:1,fiber:1,gi:70},
+    {id:39,name:'Whole Wheat Bread',cat:'Grain',serving:'1 slice (homemade)',cal:120,fat:2,fiber:3,gi:51},
+    {id:40,name:'White Rice',cat:'Grain',serving:'½ cup cooked',cal:103,fat:0,fiber:0,gi:73},
+    {id:41,name:'Oatmeal',cat:'Grain',serving:'½ cup dry',cal:150,fat:3,fiber:4,gi:55},
+    {id:42,name:'Corn Tortilla',cat:'Grain',serving:'1 tortilla',cal:52,fat:1,fiber:1,gi:52},
+    {id:43,name:'Tortilla Chips',cat:'Grain',serving:'1 oz',cal:138,fat:7,fiber:1,gi:63},
+    {id:44,name:'Cornbread (homemade)',cat:'Grain',serving:'1 piece',cal:185,fat:6,fiber:1,gi:69},
+    {id:45,name:'Quinoa',cat:'Grain',serving:'½ cup cooked',cal:111,fat:2,fiber:3,gi:53},
+    // Pantry
+    {id:46,name:'Olive Oil',cat:'Pantry',serving:'1 tbsp',cal:119,fat:14,fiber:0,gi:0},
+    {id:47,name:'Canola Oil',cat:'Pantry',serving:'1 tbsp',cal:124,fat:14,fiber:0,gi:0},
+    {id:48,name:'Butter',cat:'Pantry',serving:'1 tbsp',cal:102,fat:12,fiber:0,gi:0},
+    {id:49,name:'Peanut Butter',cat:'Pantry',serving:'2 tbsp',cal:188,fat:16,fiber:2,gi:14},
+    {id:50,name:'Almonds',cat:'Pantry',serving:'1 oz',cal:164,fat:14,fiber:4,gi:0},
+    {id:51,name:'White Flour (Lehi)',cat:'Pantry',serving:'¼ cup',cal:110,fat:0,fiber:1,gi:70},
+    {id:52,name:'Cornstarch',cat:'Pantry',serving:'1 tbsp',cal:30,fat:0,fiber:0,gi:85},
+    {id:53,name:'Cornmeal',cat:'Pantry',serving:'¼ cup',cal:110,fat:1,fiber:2,gi:69},
+    {id:54,name:'Apple Cider Vinegar',cat:'Pantry',serving:'1 tbsp',cal:3,fat:0,fiber:0,gi:0},
+    {id:55,name:'Coconut Aminos',cat:'Pantry',serving:'1 tbsp',cal:10,fat:0,fiber:0,gi:5}
+  ];
+}
+
+// ══════════════════════ INIT ══════════════════════
+updateDateUI();
+initGI();
+refreshHabitsUI();
+renderFoods();
+updateGI(50);
+</script>
+</body>
+</html>
